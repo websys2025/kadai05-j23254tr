@@ -4,17 +4,45 @@
     <title>演習課題5-2：外部APIの呼び出しテスト</title>
 </head>
 <body>
-    <h1 id="msg">何かのAPI</h1>
+    <h1 id="msg">現在の気温を調べよう</h1>
     <form name="apiform"><p>
-        何かのフォーム：<input type="text" name="form_data">
+        都市名（例: Tokyo）：<input type="text" name="form_data">
         <button type="button" id="btn1" onclick="some_api(this.form)">実行</button>
     </p></form>
     
     <div id="result"></div>
+
     <script>
         async function some_api(myForm) {
-            // ここにコードを書く
-            document.getElementById("result").innerHTML += myForm.form_data.value+"<br />";
+            const city = myForm.form_data.value.trim();
+            if (!city) {
+                document.getElementById("result").innerHTML = "都市名を入力してください。";
+                return;
+            }
+
+            try {
+                // 都市名から緯度経度を取得（Open-MeteoのジオコーディングAPI）
+                const geoRes = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(city)}&count=1&language=ja&format=json`);
+                const geoData = await geoRes.json();
+
+                if (!geoData.results || geoData.results.length === 0) {
+                    document.getElementById("result").innerHTML = `${city} が見つかりませんでした。`;
+                    return;
+                }
+
+                const { latitude, longitude, name } = geoData.results[0];
+
+                // 天気情報を取得
+                const weatherRes = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m&timezone=Asia%2FTokyo`);
+                const weatherData = await weatherRes.json();
+                const temp = weatherData.current.temperature_2m;
+
+                document.getElementById("result").innerHTML = `${name} の現在の気温は ${temp} ℃ です。<br />`;
+            } catch (error) {
+                console.error("エラー:", error);
+                document.getElementById("result").innerHTML = "天気情報の取得に失敗しました。";
+            }
+
             document.apiform.reset();
         }
     </script>
